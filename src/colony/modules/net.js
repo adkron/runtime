@@ -59,8 +59,7 @@ function ensureSSLCtx () {
  */
 
 function Socket(opts) {
-  //if (!(this instanceof Socket)) return new Socket(opts);
-  if (!(this instanceof TCPSocket)) return new TCPSocket(opts);
+  if (!(this instanceof Socket)) return new Socket(opts);
   switch (typeof opts) {
     case 'number':
       opts = { fd: opts }; // Legacy interface.
@@ -94,7 +93,12 @@ Socket.prototype.connect = function (opts, cb) {
   if (cb && this._secure) this.once('secureConnect', cb);
   else if (cb) this.once('connect', cb);
   
-  // TODO: convert to necessary subclass *HERE* based on configuration
+  // HACK: convert to necessary subclass here, now that we know necessary type
+  if (1) {
+    this.__proto__ = TCPSocket.prototype;
+    this._setup(this._opts);   // pass original (constructor) opts
+  }
+  
   // TODO: handle _pending stuff (or subclass responsibility?)
   
   this._connect(+opts.port, opts.host || "127.0.0.1", cb);
@@ -111,7 +115,12 @@ Socket.prototype.connect = function (opts, cb) {
 function TCPSocket (opts) {
   if (!(this instanceof TCPSocket)) return new TCPSocket(opts);
   Socket.call(this, opts);
-  
+  this._setup(opts);
+}
+util.inherits(TCPSocket, Socket);
+
+
+TCPSocket.prototype._setup = function (opts) {
   this._outgoing = [];
   this._sending = false;
   this._queueEnd = false;
@@ -135,9 +144,9 @@ function TCPSocket (opts) {
     }
   }
   process.on('tcp-close', this._closehandler)
-}
+};
 
-util.inherits(TCPSocket, Socket);
+
 
 TCPSocket._portsUsed = Object.create(null);
 
